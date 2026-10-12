@@ -1,0 +1,10 @@
+{
+  "name": "DishSignal - Find Exactly What You're Craving",
+  "description": "Discover nearby restaurants, coffee shops, matcha cafés, and bakeries serving the exact food, drink, or pastry you want with verified menus and interactive maps.",
+  "requestFramePermissions": [
+    "geolocation"
+  ],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}

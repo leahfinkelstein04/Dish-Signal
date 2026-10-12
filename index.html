@@ -1,0 +1,43 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <script>
+      // Sandboxed preview: intercept WebSocket connection rejections from Vite dev client
+      window.addEventListener('unhandledrejection', function (event) {
+        if (
+          event.reason &&
+          (event.reason.message?.includes('WebSocket') ||
+            event.reason?.stack?.includes('@vite/client') ||
+            event.reason?.message?.includes('closed without opened'))
+        ) {
+          event.preventDefault();
+        }
+      });
+      window.addEventListener('error', function (event) {
+        if (
+          event.filename?.includes('@vite/client') ||
+          event.message?.includes('WebSocket')
+        ) {
+          event.preventDefault();
+        }
+      });
+    </script>
+    <title>DishSignal - Find Exactly What You're Craving</title>
+    <meta name="description" content="Discover nearby restaurants, coffee shops, matcha cafés, and bakeries serving the exact food, drink, or pastry you want with verified menus and interactive maps." />
+    <meta property="og:title" content="DishSignal - Find Exactly What You're Craving" />
+    <meta property="og:description" content="Discover nearby restaurants, coffee shops, matcha cafés, and bakeries serving the exact food, drink, or pastry you want with verified menus and interactive maps." />
+    <meta property="og:type" content="website" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,100..1000;1,9..40,100..1000&family=Fraunces:ital,opsz,wght@0,9..144,100..900;1,9..144,100..900&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="" />
+  </head>
+  <body class="bg-[#FFF9EF] text-[#202B2E] antialiased selection:bg-[#F47B54] selection:text-white">
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>
+

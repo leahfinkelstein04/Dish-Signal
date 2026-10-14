@@ -9,6 +9,8 @@ import {
   Phone,
   Star,
   FileText,
+  Layers,
+  Sparkles,
 } from 'lucide-react';
 import { Restaurant } from '../types';
 
@@ -53,6 +55,10 @@ const getItemIcon = (name: string, category?: string, placeType?: string): strin
   if (lower.includes('matcha') || lower.includes('tea') || lower.includes('boba')) return '🍵';
   if (lower.includes('coffee') || lower.includes('latte') || lower.includes('espresso') || lower.includes('brew')) return '☕';
   if (lower.includes('croissant') || lower.includes('bakery') || lower.includes('pastry') || lower.includes('bun') || lower.includes('kouign')) return '🥐';
+  if (lower.includes('tuna') || lower.includes('sushi') || lower.includes('raw bar')) return '🍣';
+  if (lower.includes('soup') || lower.includes('oignon')) return '🍲';
+  if (lower.includes('pasta') || lower.includes('rigatoni')) return '🍝';
+  if (lower.includes('wrap') || lower.includes('sandwich')) return '🌯';
   return '🍽️';
 };
 
@@ -62,10 +68,12 @@ export const RestaurantCard: React.FC<RestaurantCardProps> = ({
   onSelect,
   onInspect,
 }) => {
-  const isVerified = restaurant.verificationStatus === 'VERIFIED_MENU';
   const displaySource = cleanSource(restaurant.verificationSource);
   const displayEvidence = cleanEvidence(restaurant.evidenceSummary);
-  const itemIcon = getItemIcon(restaurant.dishName, restaurant.itemCategory, restaurant.placeType);
+  const displayMenuWording = restaurant.actualMenuWording || restaurant.dishName;
+  const itemIcon = getItemIcon(displayMenuWording, restaurant.itemCategory, restaurant.placeType);
+
+  const matchType = restaurant.matchType || (restaurant.verificationStatus === 'VERIFIED_MENU' ? 'EXACT_OR_EQUIVALENT' : 'UNVERIFIED');
 
   return (
     <div
@@ -76,21 +84,26 @@ export const RestaurantCard: React.FC<RestaurantCardProps> = ({
           : 'bg-white/90 hover:bg-white border-[#123D45]/10 hover:border-[#123D45]/30 shadow-sm hover:shadow-md'
       }`}
     >
-      {/* Top Bar: Verification Status & Distance */}
+      {/* Top Bar: 3-Tier Match Quality Status & Distance */}
       <div className="flex items-center justify-between gap-2 mb-3">
-        {isVerified ? (
-          <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-50 text-emerald-800 border border-emerald-200/80 text-xs font-bold tracking-tight">
+        {matchType === 'EXACT_OR_EQUIVALENT' ? (
+          <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-50 text-emerald-800 border border-emerald-200/90 text-xs font-bold tracking-tight shadow-2xs">
             <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
-            <span>Verified on Menu</span>
+            <span>Exact or Equivalent Match</span>
+          </span>
+        ) : matchType === 'SIMILAR' ? (
+          <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-sky-50 text-sky-800 border border-sky-200/90 text-xs font-bold tracking-tight shadow-2xs">
+            <Layers className="w-3.5 h-3.5 text-sky-600 shrink-0" />
+            <span>Similar Dish</span>
           </span>
         ) : (
-          <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-amber-50 text-amber-800 border border-amber-200/80 text-xs font-bold tracking-tight">
+          <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-amber-50 text-amber-800 border border-amber-200/90 text-xs font-bold tracking-tight shadow-2xs">
             <HelpCircle className="w-3.5 h-3.5 text-amber-600 shrink-0" />
-            <span>Possible Match — Not Verified</span>
+            <span>Possible Match — Unverified</span>
           </span>
         )}
 
-        <div className="flex items-center gap-1.5 text-xs font-bold text-[#123D45] bg-[#FFF9EF] px-2.5 py-1 rounded-xl border border-[#123D45]/10">
+        <div className="flex items-center gap-1.5 text-xs font-bold text-[#123D45] bg-[#FFF9EF] px-2.5 py-1 rounded-xl border border-[#123D45]/10 shrink-0">
           <Navigation className="w-3 h-3 text-[#F47B54]" />
           <span>{restaurant.distanceMiles} mi away</span>
         </div>
@@ -126,14 +139,12 @@ export const RestaurantCard: React.FC<RestaurantCardProps> = ({
               {itemIcon}
             </div>
             <div>
+              <div className="text-[11px] font-bold uppercase tracking-wider text-[#F47B54]">
+                Actual Menu Wording
+              </div>
               <span className="font-heading font-black text-base sm:text-lg text-[#123D45] block">
-                {restaurant.dishName}
+                {displayMenuWording}
               </span>
-              {restaurant.matchedVariation && restaurant.matchedVariation !== restaurant.dishName && (
-                <span className="text-[11px] text-[#F47B54] font-medium block">
-                  Variation: {restaurant.matchedVariation}
-                </span>
-              )}
             </div>
           </div>
           <span className="px-2.5 py-1 rounded-xl bg-white border border-[#123D45]/10 font-bold text-sm text-[#123D45] shrink-0 shadow-2xs">
@@ -141,11 +152,31 @@ export const RestaurantCard: React.FC<RestaurantCardProps> = ({
           </span>
         </div>
 
-        <p className="mt-2 text-xs sm:text-sm text-[#202B2E]/80 leading-relaxed">
+        <p className="mt-2.5 text-xs sm:text-sm text-[#202B2E]/80 leading-relaxed">
           {restaurant.dishDescription}
         </p>
 
-        {/* Verification Source Citation & Explanation */}
+        {/* Semantic Match Explanation Box */}
+        {restaurant.matchExplanation && (
+          <div className={`mt-3 p-2.5 rounded-xl text-[11px] leading-relaxed border ${
+            matchType === 'EXACT_OR_EQUIVALENT'
+              ? 'bg-emerald-50/70 border-emerald-200/60 text-emerald-900'
+              : matchType === 'SIMILAR'
+              ? 'bg-sky-50/70 border-sky-200/60 text-sky-900'
+              : 'bg-amber-50/70 border-amber-200/60 text-amber-900'
+          }`}>
+            <span className="font-bold block mb-0.5">
+              {matchType === 'EXACT_OR_EQUIVALENT'
+                ? '✓ Menu Verification:'
+                : matchType === 'SIMILAR'
+                ? 'ℹ Related Dish Difference:'
+                : '⚠ Unverified Availability:'}
+            </span>
+            <span>{restaurant.matchExplanation}</span>
+          </div>
+        )}
+
+        {/* Verification Source Citation & Evidence */}
         <div className="mt-3 pt-2.5 border-t border-[#123D45]/10 space-y-1 text-[11px]">
           <div className="flex items-center justify-between gap-2 text-[#202B2E]/75">
             <div className="flex items-center gap-1.5 truncate">
@@ -162,16 +193,11 @@ export const RestaurantCard: React.FC<RestaurantCardProps> = ({
                 onClick={(e) => e.stopPropagation()}
                 className="text-[#F47B54] hover:underline flex items-center gap-1 font-semibold shrink-0"
               >
-                <span>Evidence Link</span>
+                <span>Menu Link</span>
                 <ExternalLink className="w-3 h-3" />
               </a>
             )}
           </div>
-          {displayEvidence && (
-            <p className="text-[11px] text-[#202B2E]/65 italic">
-              {displayEvidence}
-            </p>
-          )}
         </div>
       </div>
 

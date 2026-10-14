@@ -130,7 +130,7 @@ export const InteractiveMap: React.FC<InteractiveMapProps> = ({
     if (radiusCircleRef.current) {
       radiusCircleRef.current.remove();
     }
-    const meters = radiusMiles * 1609.34;
+    const meters = radiusMiles * 1609.344;
     const circle = L.circle([userLocation.lat, userLocation.lng], {
       radius: meters,
       color: '#123D45',
@@ -142,9 +142,10 @@ export const InteractiveMap: React.FC<InteractiveMapProps> = ({
     }).addTo(map);
     radiusCircleRef.current = circle;
 
-    // If there are no restaurants yet, pan to the user's new address
+    // Pan & zoom appropriately for the selected radius
     if (restaurants.length === 0) {
-      map.setView([userLocation.lat, userLocation.lng], 13);
+      const zoom = radiusMiles <= 1 ? 15 : radiusMiles <= 3 ? 14 : radiusMiles <= 5 ? 13 : radiusMiles <= 10 ? 12 : 10;
+      map.setView([userLocation.lat, userLocation.lng], zoom);
     }
   }, [userLocation, radiusMiles]);
 
@@ -243,9 +244,12 @@ export const InteractiveMap: React.FC<InteractiveMapProps> = ({
 
     // Auto-fit bounds if we have restaurants
     if (restaurants.length > 0) {
-      map.fitBounds(bounds, { padding: [50, 50], maxZoom: 15 });
+      map.fitBounds(bounds, { padding: [50, 50], maxZoom: 16 });
+    } else {
+      const zoom = radiusMiles <= 1 ? 15 : radiusMiles <= 3 ? 14 : radiusMiles <= 5 ? 13 : radiusMiles <= 10 ? 12 : 10;
+      map.setView([userLocation.lat, userLocation.lng], zoom);
     }
-  }, [restaurants]);
+  }, [restaurants, radiusMiles, userLocation]);
 
   // React to selected restaurant change
   useEffect(() => {

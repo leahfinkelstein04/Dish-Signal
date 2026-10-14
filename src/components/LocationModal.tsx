@@ -10,8 +10,9 @@ interface LocationModalProps {
 }
 
 const POPULAR_ADDRESS_EXAMPLES = [
-  { label: '350 5th Ave, New York, NY', name: 'Empire State Building, NY', lat: 40.7484, lng: -73.9857 },
+  { label: '821 Baronne St, New Orleans, LA 70113', name: 'Downtown / Warehouse District, New Orleans', lat: 29.9482, lng: -90.0734 },
   { label: '100 Pine St, San Francisco, CA', name: 'Financial District, SF', lat: 37.7925, lng: -122.4001 },
+  { label: '350 5th Ave, New York, NY', name: 'Empire State Building, NY', lat: 40.7484, lng: -73.9857 },
   { label: '111 W Wacker Dr, Chicago, IL', name: 'The Loop, Chicago', lat: 41.8867, lng: -87.6322 },
   { label: '1100 Congress Ave, Austin, TX', name: 'Downtown Austin, TX', lat: 30.2747, lng: -97.7404 },
   { label: '6801 Hollywood Blvd, Los Angeles, CA', name: 'Hollywood, CA', lat: 34.1016, lng: -118.3398 },

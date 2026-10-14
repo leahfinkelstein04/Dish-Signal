@@ -36,10 +36,10 @@ export const LoadingState: React.FC<LoadingStateProps> = ({ dishQuery, locationN
       </div>
 
       <h3 className="font-heading text-2xl sm:text-3xl font-black text-[#123D45] mb-2">
-        Signaling “{dishQuery}”
+        Searching for {dishQuery} and similar menu names…
       </h3>
       <p className="text-sm text-[#202B2E]/70 mb-5">
-        Searching menus near <strong className="text-[#123D45]">{locationName}</strong>
+        Comparing actual restaurant menus near <strong className="text-[#123D45]">{locationName}</strong>
       </p>
 
       {/* Dynamic step ticker */}
@@ -56,6 +56,8 @@ interface EmptyStateProps {
   onSelectSuggestion: (dish: string) => void;
   onOpenLocation: () => void;
   locationName: string;
+  radiusMiles?: number;
+  onSelectRadius?: (miles: number) => void;
 }
 
 const EXPANDED_EMPTY_SUGGESTIONS = [
@@ -76,30 +78,55 @@ export const EmptyState: React.FC<EmptyStateProps> = ({
   onSelectSuggestion,
   onOpenLocation,
   locationName,
+  radiusMiles = 5,
+  onSelectRadius,
 }) => {
+  const nextRadiusOptions = [1, 3, 5, 10, 25].filter((r) => r > radiusMiles);
+
   return (
-    <div className="py-16 px-4 text-center max-w-lg mx-auto bg-white/80 rounded-3xl border border-[#123D45]/10 shadow-sm">
+    <div className="py-12 px-4 text-center max-w-lg mx-auto bg-white/90 rounded-3xl border border-[#123D45]/10 shadow-sm animate-in fade-in duration-200">
       <div className="w-14 h-14 rounded-2xl bg-[#FFF9EF] border border-[#F7D889] text-[#123D45] flex items-center justify-center mx-auto mb-4">
         <Search className="w-6 h-6 text-[#F47B54]" />
       </div>
 
-      <h3 className="font-heading text-xl font-bold text-[#123D45] mb-2">
-        No exact menu matches for “{dishQuery}”
+      <h3 className="font-heading text-xl sm:text-2xl font-bold text-[#123D45] mb-2">
+        No verified matches within {radiusMiles} mile{radiusMiles > 1 ? 's' : ''}
       </h3>
-      <p className="text-xs text-[#202B2E]/70 mb-6 leading-relaxed">
-        None of the restaurants in {locationName} had verified offerings for this exact item. Try expanding your search radius or choosing one of our popular cravings.
+      <p className="text-xs sm:text-sm text-[#202B2E]/70 mb-5 leading-relaxed">
+        None of the active menus near <strong className="text-[#123D45]">{locationName}</strong> had confirmed offerings for “<strong>{dishQuery}</strong>” within your selected <strong>{radiusMiles}-mile radius</strong>.
       </p>
+
+      {/* Immediate Radius Expansion Action Buttons */}
+      {nextRadiusOptions.length > 0 && onSelectRadius && (
+        <div className="mb-6 p-4 rounded-2xl bg-[#FFF9EF] border border-[#F7D889]/60">
+          <div className="text-xs font-bold text-[#123D45] uppercase tracking-wider mb-2.5">
+            Expand your search radius:
+          </div>
+          <div className="flex flex-wrap items-center justify-center gap-2">
+            {nextRadiusOptions.map((r) => (
+              <button
+                key={r}
+                type="button"
+                onClick={() => onSelectRadius(r)}
+                className="px-3.5 py-2 rounded-xl bg-[#123D45] hover:bg-[#1a4e57] text-white text-xs font-bold transition shadow-xs hover:shadow-sm"
+              >
+                Expand to {r} miles →
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
 
       <div className="flex flex-col gap-2">
         <button
           onClick={onOpenLocation}
-          className="w-full py-2.5 rounded-xl bg-[#123D45] text-white text-xs font-bold hover:bg-[#1a4e57] transition shadow-xs"
+          className="w-full py-2.5 rounded-xl bg-white border border-[#123D45]/20 hover:border-[#123D45] text-[#123D45] text-xs font-bold transition shadow-2xs"
         >
-          Expand Radius or Change Location
+          Change Street Address or Use GPS
         </button>
 
         <div className="pt-4 text-xs font-bold uppercase tracking-wider text-[#123D45]/60">
-          Try popular cravings instead:
+          Or try popular cravings nearby:
         </div>
         <div className="flex flex-wrap justify-center gap-1.5 pt-1">
           {EXPANDED_EMPTY_SUGGESTIONS.map((item) => (

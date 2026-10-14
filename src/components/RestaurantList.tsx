@@ -24,7 +24,7 @@ interface RestaurantListProps {
   isSearchingMore?: boolean;
 }
 
-type TabFilter = 'ALL' | 'VERIFIED' | 'UNVERIFIED';
+type TabFilter = 'ALL' | 'EXACT' | 'SIMILAR' | 'UNVERIFIED';
 type SortOption = 'DISTANCE' | 'RATING' | 'PRICE';
 
 export const RestaurantList: React.FC<RestaurantListProps> = ({
@@ -42,22 +42,28 @@ export const RestaurantList: React.FC<RestaurantListProps> = ({
   const [visibleCount, setVisibleCount] = useState<number>(10);
   const [showDiagnosticsDetail, setShowDiagnosticsDetail] = useState<boolean>(false);
 
-  const verifiedCount = useMemo(
-    () => restaurants.filter((r) => r.verificationStatus === 'VERIFIED_MENU').length,
+  const exactCount = useMemo(
+    () => restaurants.filter((r) => r.matchType === 'EXACT_OR_EQUIVALENT').length,
+    [restaurants]
+  );
+  const similarCount = useMemo(
+    () => restaurants.filter((r) => r.matchType === 'SIMILAR').length,
     [restaurants]
   );
   const unverifiedCount = useMemo(
-    () => restaurants.filter((r) => r.verificationStatus !== 'VERIFIED_MENU').length,
+    () => restaurants.filter((r) => r.matchType === 'UNVERIFIED' || r.verificationStatus !== 'VERIFIED_MENU').length,
     [restaurants]
   );
 
   const filteredRestaurants = useMemo(() => {
     let list = [...restaurants];
 
-    if (activeTab === 'VERIFIED') {
-      list = list.filter((r) => r.verificationStatus === 'VERIFIED_MENU');
+    if (activeTab === 'EXACT') {
+      list = list.filter((r) => r.matchType === 'EXACT_OR_EQUIVALENT');
+    } else if (activeTab === 'SIMILAR') {
+      list = list.filter((r) => r.matchType === 'SIMILAR');
     } else if (activeTab === 'UNVERIFIED') {
-      list = list.filter((r) => r.verificationStatus !== 'VERIFIED_MENU');
+      list = list.filter((r) => r.matchType === 'UNVERIFIED' || r.verificationStatus !== 'VERIFIED_MENU');
     }
 
     // Sort
@@ -84,6 +90,8 @@ export const RestaurantList: React.FC<RestaurantListProps> = ({
     setVisibleCount((prev) => Math.min(prev + 6, filteredRestaurants.length));
   };
 
+  const interpretation = diagnostics?.interpretation;
+
   return (
     <div className="space-y-4">
       {/* Search Diagnostics Bar */}
@@ -99,24 +107,29 @@ export const RestaurantList: React.FC<RestaurantListProps> = ({
               </span>
             </div>
 
-            <div className="flex flex-wrap items-center gap-3 text-xs text-[#202B2E]/75">
+            <div className="flex flex-wrap items-center gap-2 text-xs text-[#202B2E]/75">
               <span className="bg-[#FFF9EF] px-2.5 py-1 rounded-lg border border-[#123D45]/10 font-semibold">
                 Candidates: <strong>{diagnostics.candidatesEvaluated}</strong>
               </span>
               <span className="bg-[#FFF9EF] px-2.5 py-1 rounded-lg border border-[#123D45]/10 font-semibold">
                 Menus Inspected: <strong>{diagnostics.menusChecked}</strong>
               </span>
-              <span className="bg-emerald-50 text-emerald-800 px-2.5 py-1 rounded-lg border border-emerald-200 font-bold">
-                Verified: {diagnostics.verifiedCount}
+              <span className="bg-emerald-50 text-emerald-800 px-2 py-1 rounded-lg border border-emerald-200 font-bold">
+                Exact: {exactCount}
               </span>
-              <span className="bg-amber-50 text-amber-800 px-2.5 py-1 rounded-lg border border-amber-200 font-bold">
-                Possible: {diagnostics.unverifiedCount}
+              {similarCount > 0 && (
+                <span className="bg-blue-50 text-blue-800 px-2 py-1 rounded-lg border border-blue-200 font-bold">
+                  Similar: {similarCount}
+                </span>
+              )}
+              <span className="bg-amber-50 text-amber-800 px-2 py-1 rounded-lg border border-amber-200 font-bold">
+                Possible: {unverifiedCount}
               </span>
 
               <button
                 type="button"
                 onClick={() => setShowDiagnosticsDetail(!showDiagnosticsDetail)}
-                className="text-xs text-[#F47B54] font-bold hover:underline flex items-center gap-1"
+                className="text-xs text-[#F47B54] font-bold hover:underline flex items-center gap-1 ml-1"
               >
                 <span>{showDiagnosticsDetail ? 'Hide Queries' : 'Inspect Queries'}</span>
                 <ChevronDown
@@ -131,6 +144,25 @@ export const RestaurantList: React.FC<RestaurantListProps> = ({
           {/* Collapsible Diagnostics Detail */}
           {showDiagnosticsDetail && (
             <div className="mt-3 pt-3 border-t border-[#123D45]/10 space-y-2.5 text-xs text-[#202B2E]/80 animate-in fade-in duration-150">
+              {interpretation && (
+                <div className="bg-[#FFF9EF] p-2.5 rounded-xl border border-[#F7D889]/60">
+                  <span className="font-bold text-[#123D45] block mb-1">
+                    Semantic Intent & Modifiers:
+                  </span>
+                  <p className="text-[11px] text-[#202B2E]/80 leading-relaxed mb-1.5">
+                    {interpretation.explanation}
+                  </p>
+                  <div className="flex flex-wrap gap-1 text-[11px]">
+                    <span className="font-semibold text-[#123D45]">Core Ingredients:</span>
+                    {interpretation.coreIngredients.map((ing, i) => (
+                      <span key={i} className="bg-white px-1.5 py-0.5 rounded border border-[#123D45]/10 font-medium">
+                        {ing}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              )}
+
               <div>
                 <span className="font-bold text-[#123D45] block mb-1">
                   Intelligent Dish Variations Searched:
@@ -172,10 +204,10 @@ export const RestaurantList: React.FC<RestaurantListProps> = ({
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-3">
           <div>
             <h2 className="font-heading text-xl sm:text-2xl font-black text-[#123D45]">
-              {restaurants.length} Spots Serving “{dishQuery}” & Variations
+              {restaurants.length} Spots for “{interpretation?.canonicalDish || dishQuery}”
             </h2>
             <p className="text-xs text-[#202B2E]/65 mt-0.5">
-              Verified menu items prioritized. Click any spot to inspect ingredients or view on map.
+              Ranked by match quality (Exact menu items first, then similar dishes and unverified candidates).
             </p>
           </div>
 
@@ -195,7 +227,7 @@ export const RestaurantList: React.FC<RestaurantListProps> = ({
           </div>
         </div>
 
-        {/* Tab Filters: All / Verified / Possible */}
+        {/* Tab Filters: All / Exact / Similar / Unverified */}
         <div className="flex items-center gap-2 pt-2 border-t border-[#123D45]/5 overflow-x-auto">
           <button
             onClick={() => {
@@ -208,23 +240,40 @@ export const RestaurantList: React.FC<RestaurantListProps> = ({
                 : 'bg-stone-100 text-[#202B2E]/70 hover:bg-stone-200'
             }`}
           >
-            All Matches ({restaurants.length})
+            All Results ({restaurants.length})
           </button>
 
           <button
             onClick={() => {
-              setActiveTab('VERIFIED');
+              setActiveTab('EXACT');
               setVisibleCount(10);
             }}
             className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold transition shrink-0 ${
-              activeTab === 'VERIFIED'
+              activeTab === 'EXACT'
                 ? 'bg-emerald-700 text-white shadow-xs'
                 : 'bg-emerald-50 text-emerald-800 hover:bg-emerald-100 border border-emerald-200/50'
             }`}
           >
             <CheckCircle2 className="w-3.5 h-3.5" />
-            <span>Verified Menu Matches ({verifiedCount})</span>
+            <span>Exact or Equivalent Match ({exactCount})</span>
           </button>
+
+          {similarCount > 0 && (
+            <button
+              onClick={() => {
+                setActiveTab('SIMILAR');
+                setVisibleCount(10);
+              }}
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold transition shrink-0 ${
+                activeTab === 'SIMILAR'
+                  ? 'bg-blue-600 text-white shadow-xs'
+                  : 'bg-blue-50 text-blue-800 hover:bg-blue-100 border border-blue-200/50'
+              }`}
+            >
+              <Layers className="w-3.5 h-3.5" />
+              <span>Similar Dish ({similarCount})</span>
+            </button>
+          )}
 
           <button
             onClick={() => {
@@ -238,7 +287,7 @@ export const RestaurantList: React.FC<RestaurantListProps> = ({
             }`}
           >
             <HelpCircle className="w-3.5 h-3.5" />
-            <span>Possible Matches — Not Verified ({unverifiedCount})</span>
+            <span>Possible Match — Unverified ({unverifiedCount})</span>
           </button>
         </div>
       </div>
@@ -253,15 +302,29 @@ export const RestaurantList: React.FC<RestaurantListProps> = ({
 
       {/* Cards List */}
       <div className="space-y-4">
-        {displayedList.map((restaurant) => (
-          <RestaurantCard
-            key={restaurant.id}
-            restaurant={restaurant}
-            isSelected={selectedRestaurant?.id === restaurant.id}
-            onSelect={onSelectRestaurant}
-            onInspect={onInspectRestaurant}
-          />
-        ))}
+        {displayedList.length === 0 ? (
+          <div className="p-8 text-center bg-white rounded-2xl border border-[#123D45]/10">
+            <p className="text-sm text-[#202B2E]/70 mb-3">
+              No spots found under the selected filter tab.
+            </p>
+            <button
+              onClick={() => setActiveTab('ALL')}
+              className="px-4 py-2 rounded-xl bg-[#123D45] text-white text-xs font-bold shadow-xs hover:bg-[#1a4e57] transition"
+            >
+              View All Results ({restaurants.length})
+            </button>
+          </div>
+        ) : (
+          displayedList.map((restaurant) => (
+            <RestaurantCard
+              key={restaurant.id}
+              restaurant={restaurant}
+              isSelected={selectedRestaurant?.id === restaurant.id}
+              onSelect={onSelectRestaurant}
+              onInspect={onInspectRestaurant}
+            />
+          ))
+        )}
       </div>
 
       {/* Pagination & Live Search More Actions */}

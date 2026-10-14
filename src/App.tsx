@@ -12,9 +12,9 @@ import { List, Map as MapIcon, Utensils, Compass } from 'lucide-react';
 export default function App() {
   // Location State
   const [userLocation, setUserLocation] = useState<UserLocation>({
-    lat: 37.7749,
-    lng: -122.4194,
-    name: '100 Market St, San Francisco, CA',
+    lat: 29.9482,
+    lng: -90.0734,
+    name: '821 Baronne St, New Orleans, LA 70113',
     isGps: false,
   });
   const [radiusMiles, setRadiusMiles] = useState<number>(5);
@@ -189,27 +189,7 @@ export default function App() {
     );
   };
 
-  // Initial Load: Auto-detect GPS if permission is granted
-  useEffect(() => {
-    if ('geolocation' in navigator) {
-      navigator.geolocation.getCurrentPosition(
-        (pos) => {
-          const newLoc: UserLocation = {
-            lat: pos.coords.latitude,
-            lng: pos.coords.longitude,
-            name: 'Current GPS Location',
-            isGps: true,
-            accuracyMeters: Math.round(pos.coords.accuracy),
-          };
-          setUserLocation(newLoc);
-        },
-        () => {
-          // Default location is already set
-        },
-        { timeout: 4000, maximumAge: 60000 }
-      );
-    }
-  }, []);
+  // GPS is triggered only when user explicitly clicks "Use My Location" or GPS icon
 
   const handleSelectRadius = (miles: number) => {
     setRadiusMiles(miles);
@@ -254,6 +234,49 @@ export default function App() {
           isGps={userLocation.isGps}
         />
 
+        {/* Semantic Query Interpretation & Spelling Correction Alert */}
+        {hasSearched && !isLoading && diagnostics?.interpretation && (
+          <div className="my-3 px-4 py-3 rounded-2xl bg-white/90 border border-[#123D45]/15 shadow-xs flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 text-xs text-[#202B2E]">
+            <div className="flex flex-wrap items-center gap-2">
+              <span className="inline-flex items-center gap-1.5 font-bold text-[#123D45]">
+                <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+                {diagnostics.interpretation.isSpellingCorrected ? 'Showing results for:' : 'Searching for:'}
+              </span>
+              <strong className="text-sm font-heading font-black text-[#123D45] bg-[#FFF9EF] px-2.5 py-0.5 rounded-lg border border-[#F7D889]">
+                {diagnostics.interpretation.canonicalDish}
+              </strong>
+              {diagnostics.interpretation.isSpellingCorrected && (
+                <span className="text-[#202B2E]/60 text-xs">
+                  (interpreted from original input: “{dishQuery}”)
+                </span>
+              )}
+            </div>
+
+            <div className="flex flex-wrap items-center gap-2">
+              {diagnostics.interpretation.didYouMean &&
+                diagnostics.interpretation.didYouMean.toLowerCase() !== dishQuery.toLowerCase() && (
+                  <button
+                    type="button"
+                    onClick={() => performSearch(diagnostics.interpretation!.didYouMean!)}
+                    className="text-xs text-[#F47B54] font-bold hover:underline bg-[#FFF9EF] px-2.5 py-1 rounded-lg border border-[#F47B54]/30"
+                  >
+                    Did you mean: {diagnostics.interpretation.didYouMean}?
+                  </button>
+                )}
+
+              {diagnostics.interpretation.isSpellingCorrected && (
+                <button
+                  type="button"
+                  onClick={() => performSearch(dishQuery)}
+                  className="text-xs text-[#123D45]/70 hover:text-[#123D45] font-semibold underline"
+                >
+                  Search original query instead
+                </button>
+              )}
+            </div>
+          </div>
+        )}
+
         {/* Mobile View Toggle (List vs Map) */}
         {hasSearched && (
           <div className="lg:hidden flex items-center justify-center my-3">
@@ -296,6 +319,8 @@ export default function App() {
               onSelectSuggestion={(dish) => performSearch(dish)}
               onOpenLocation={() => setIsLocationModalOpen(true)}
               locationName={userLocation.name}
+              radiusMiles={radiusMiles}
+              onSelectRadius={handleSelectRadius}
             />
           ) : restaurants.length > 0 ? (
             /* Split Screen Layout (Desktop: Side-by-Side; Mobile: Toggled) */

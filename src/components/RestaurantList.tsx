@@ -22,6 +22,7 @@ interface RestaurantListProps {
   diagnostics?: SearchDiagnostics;
   onSearchMore?: () => void;
   isSearchingMore?: boolean;
+  onOpenDiagnostics?: () => void;
 }
 
 type TabFilter = 'ALL' | 'EXACT' | 'SIMILAR' | 'UNVERIFIED';
@@ -36,6 +37,7 @@ export const RestaurantList: React.FC<RestaurantListProps> = ({
   diagnostics,
   onSearchMore,
   isSearchingMore,
+  onOpenDiagnostics,
 }) => {
   const [activeTab, setActiveTab] = useState<TabFilter>('ALL');
   const [sortBy, setSortBy] = useState<SortOption>('DISTANCE');
@@ -125,6 +127,22 @@ export const RestaurantList: React.FC<RestaurantListProps> = ({
               <span className="bg-amber-50 text-amber-800 px-2 py-1 rounded-lg border border-amber-200 font-bold">
                 Possible: {unverifiedCount}
               </span>
+
+              {onOpenDiagnostics && (
+                <button
+                  type="button"
+                  onClick={onOpenDiagnostics}
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-[#123D45] hover:bg-[#1a4e57] text-[#F7D889] text-xs font-bold transition shadow-xs hover:shadow-sm"
+                >
+                  <Activity className="w-3.5 h-3.5" />
+                  <span>View Search Diagnostics</span>
+                  {diagnostics.visitedWebsites && (
+                    <span className="ml-1 px-1.5 py-0.2 bg-[#F7D889] text-[#123D45] text-[10px] font-black rounded-full">
+                      {diagnostics.visitedWebsites.length}
+                    </span>
+                  )}
+                </button>
+              )}
 
               <button
                 type="button"

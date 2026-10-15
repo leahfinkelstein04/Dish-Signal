@@ -58,6 +58,7 @@ interface EmptyStateProps {
   locationName: string;
   radiusMiles?: number;
   onSelectRadius?: (miles: number) => void;
+  onOpenDiagnostics?: () => void;
 }
 
 const EXPANDED_EMPTY_SUGGESTIONS = [
@@ -80,6 +81,7 @@ export const EmptyState: React.FC<EmptyStateProps> = ({
   locationName,
   radiusMiles = 5,
   onSelectRadius,
+  onOpenDiagnostics,
 }) => {
   const nextRadiusOptions = [1, 3, 5, 10, 25].filter((r) => r > radiusMiles);
 
@@ -118,6 +120,17 @@ export const EmptyState: React.FC<EmptyStateProps> = ({
       )}
 
       <div className="flex flex-col gap-2">
+        {onOpenDiagnostics && (
+          <button
+            type="button"
+            onClick={onOpenDiagnostics}
+            className="w-full py-2.5 rounded-xl bg-[#123D45] hover:bg-[#1a4e57] text-[#F7D889] text-xs font-bold transition shadow-xs flex items-center justify-center gap-2"
+          >
+            <RefreshCw className="w-3.5 h-3.5" />
+            <span>View Search Diagnostics & Visited Websites</span>
+          </button>
+        )}
+
         <button
           onClick={onOpenLocation}
           className="w-full py-2.5 rounded-xl bg-white border border-[#123D45]/20 hover:border-[#123D45] text-[#123D45] text-xs font-bold transition shadow-2xs"

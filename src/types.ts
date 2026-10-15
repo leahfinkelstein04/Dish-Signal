@@ -15,6 +15,17 @@ export interface DishInterpretation {
   explanation: string;
 }
 
+export interface VerifiedMenuEvidence {
+  retrievedText: string;
+  sourceUrl: string;
+  sourceType: 'Official Website' | 'Online Menu' | 'Uber Eats' | 'Toast POS' | 'DoorDash';
+  retrievalStatus: 'SUCCESS' | 'UNRETRIEVED' | 'NOT_FOUND_ON_MENU';
+  dateChecked: string;
+  actualPrice: string | null;
+  restaurantName: string;
+  restaurantAddress: string;
+}
+
 export interface Restaurant {
   id: string;
   name: string;
@@ -25,7 +36,7 @@ export interface Restaurant {
   dishName: string;
   actualMenuWording: string;
   dishDescription: string;
-  dishPrice: string;
+  dishPrice: string | null;
   verificationStatus: 'VERIFIED_MENU' | 'UNVERIFIED_SUGGESTION';
   verificationSource: string;
   matchType: MatchType;
@@ -45,6 +56,23 @@ export interface Restaurant {
   dietaryNotes: string[];
   placeType?: string; // e.g. "Coffee Shop", "Matcha Café", "Bakery & Café", "Restaurant", "Tea House"
   itemCategory?: 'food' | 'coffee' | 'matcha' | 'bakery' | 'beverage';
+  menuEvidence?: VerifiedMenuEvidence | null;
+}
+
+export interface VisitedWebsiteAudit {
+  restaurantName: string;
+  websiteUrl: string;
+  sourceType: 'Official Website' | 'Online Menu' | 'Uber Eats' | 'Toast POS' | 'DoorDash' | 'Google Places / Registry';
+  parseStatus: 'PARSED_SUCCESS' | 'SKIPPED_NO_MENU' | 'PARSED_PARTIAL' | 'UNAVAILABLE';
+  reasonOrDetails: string;
+  itemsDiscoveredCount: number;
+  responseTimeMs?: number;
+}
+
+export interface PipelineStep {
+  step: string;
+  status: 'completed' | 'in_progress' | 'skipped';
+  details: string;
 }
 
 export interface SearchDiagnostics {
@@ -60,7 +88,16 @@ export interface SearchDiagnostics {
   apiStatus: string;
   hasMoreToSearch: boolean;
   page: number;
+  radiusMiles?: number;
+  radiusMeters?: number;
   interpretation?: DishInterpretation;
+  visitedWebsites?: VisitedWebsiteAudit[];
+  pipelineSteps?: PipelineStep[];
+  geoAccuracy?: {
+    resolvedCity: string;
+    coordinates: { lat: number; lng: number };
+    radiusMiles: number;
+  };
 }
 
 export interface SearchResponse {
@@ -87,6 +124,17 @@ export interface UserLocation {
   name: string;
   isGps: boolean;
   accuracyMeters?: number;
+}
+
+export interface AddressSuggestion {
+  label: string;
+  primaryText: string;
+  secondaryText: string;
+  lat: number;
+  lng: number;
+  city?: string;
+  state?: string;
+  zip?: string;
 }
 
 export interface DishInspection {

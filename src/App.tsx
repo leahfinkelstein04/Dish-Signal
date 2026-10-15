@@ -5,9 +5,10 @@ import { LocationModal } from './components/LocationModal';
 import { RestaurantList } from './components/RestaurantList';
 import { InteractiveMap } from './components/InteractiveMap';
 import { DishInspectModal } from './components/DishInspectModal';
+import { SearchDiagnosticsDrawer } from './components/SearchDiagnosticsDrawer';
 import { LoadingState, EmptyState, ErrorState } from './components/EmptyOrLoadingState';
-import { Restaurant, UserLocation, SearchDiagnostics } from './types';
-import { List, Map as MapIcon, Utensils, Compass } from 'lucide-react';
+import { Restaurant, UserLocation, SearchDiagnostics, AddressSuggestion } from './types';
+import { List, Map as MapIcon, Utensils, Compass, Activity } from 'lucide-react';
 
 export default function App() {
   // Location State
@@ -19,6 +20,7 @@ export default function App() {
   });
   const [radiusMiles, setRadiusMiles] = useState<number>(5);
   const [isLocationModalOpen, setIsLocationModalOpen] = useState<boolean>(false);
+  const [isDiagnosticsOpen, setIsDiagnosticsOpen] = useState<boolean>(false);
 
   // Search State
   const [dishQuery, setDishQuery] = useState<string>('');
@@ -37,12 +39,46 @@ export default function App() {
 
   const abortControllerRef = useRef<AbortController | null>(null);
 
-  // Search API Call: can take an updated UserLocation or a raw address string to geocode
+  // Search API Call: can take an updated UserLocation, raw address string, or AddressSuggestion
   const performSearch = async (
     dish: string,
-    locOrAddress?: UserLocation | string,
+    locOrAddress?: UserLocation | string | AddressSuggestion,
     radius: number = radiusMiles
   ) => {
+    let targetLoc: UserLocation = userLocation;
+
+    // If user passed a structured AddressSuggestion from the autocomplete popup
+    if (typeof locOrAddress === 'object' && locOrAddress !== null && 'primaryText' in locOrAddress) {
+      const sugg = locOrAddress as AddressSuggestion;
+      targetLoc = {
+        lat: sugg.lat,
+        lng: sugg.lng,
+        name: sugg.label,
+        isGps: false,
+      };
+      setUserLocation(targetLoc);
+    } else if (typeof locOrAddress === 'string' && locOrAddress.trim()) {
+      // If user typed a new address string without picking a suggestion, geocode it
+      try {
+        const geoRes = await fetch(`/api/geocode?q=${encodeURIComponent(locOrAddress.trim())}`);
+        const geoData = await geoRes.json();
+        if (geoRes.ok && !geoData.error) {
+          targetLoc = {
+            lat: geoData.lat,
+            lng: geoData.lng,
+            name: geoData.displayName || geoData.city || locOrAddress.trim(),
+            isGps: false,
+          };
+          setUserLocation(targetLoc);
+        }
+      } catch (geoErr) {
+        console.warn('Geocoding error, falling back to existing location:', geoErr);
+      }
+    } else if (typeof locOrAddress === 'object' && locOrAddress !== null && 'lat' in locOrAddress) {
+      targetLoc = locOrAddress as UserLocation;
+      setUserLocation(targetLoc);
+    }
+
     if (!dish.trim()) return;
 
     if (abortControllerRef.current) {
@@ -58,30 +94,6 @@ export default function App() {
     setCurrentPage(1);
 
     try {
-      let targetLoc: UserLocation = userLocation;
-
-      // If user typed a new address string in the search bar, geocode it first
-      if (typeof locOrAddress === 'string' && locOrAddress.trim()) {
-        try {
-          const geoRes = await fetch(`/api/geocode?q=${encodeURIComponent(locOrAddress.trim())}`, {
-            signal: abortControllerRef.current.signal,
-          });
-          const geoData = await geoRes.json();
-          if (geoRes.ok && !geoData.error) {
-            targetLoc = {
-              lat: geoData.lat,
-              lng: geoData.lng,
-              name: geoData.displayName || geoData.city || locOrAddress.trim(),
-              isGps: false,
-            };
-            setUserLocation(targetLoc);
-          }
-        } catch (geoErr) {
-          console.warn('Geocoding error, falling back to existing location:', geoErr);
-        }
-      } else if (typeof locOrAddress === 'object' && locOrAddress !== null) {
-        targetLoc = locOrAddress;
-      }
 
       const res = await fetch('/api/search-dishes', {
         method: 'POST',
@@ -163,20 +175,34 @@ export default function App() {
     }
   };
 
-  // GPS Locate helper
+  // GPS Locate helper with automatic reverse-geocoding
   const handleUseGps = () => {
     if (!('geolocation' in navigator)) {
       setIsLocationModalOpen(true);
       return;
     }
     navigator.geolocation.getCurrentPosition(
-      (pos) => {
+      async (pos) => {
+        const { latitude, longitude, accuracy } = pos.coords;
+        let displayName = 'Current GPS Location';
+        try {
+          const revRes = await fetch(`/api/reverse-geocode?lat=${latitude}&lng=${longitude}`);
+          if (revRes.ok) {
+            const revData = await revRes.json();
+            if (revData.displayName) {
+              displayName = revData.displayName;
+            }
+          }
+        } catch (revErr) {
+          console.warn('Reverse geocode error:', revErr);
+        }
+
         const newLoc: UserLocation = {
-          lat: pos.coords.latitude,
-          lng: pos.coords.longitude,
-          name: 'Current GPS Location',
+          lat: latitude,
+          lng: longitude,
+          name: displayName,
           isGps: true,
-          accuracyMeters: Math.round(pos.coords.accuracy),
+          accuracyMeters: Math.round(accuracy),
         };
         setUserLocation(newLoc);
         performSearch(dishQuery, newLoc, radiusMiles);
@@ -188,8 +214,6 @@ export default function App() {
       { timeout: 8000, maximumAge: 60000 }
     );
   };
-
-  // GPS is triggered only when user explicitly clicks "Use My Location" or GPS icon
 
   const handleSelectRadius = (miles: number) => {
     setRadiusMiles(miles);
@@ -217,6 +241,8 @@ export default function App() {
         onOpenLocationModal={() => setIsLocationModalOpen(true)}
         radiusMiles={radiusMiles}
         onSelectRadius={handleSelectRadius}
+        onOpenDiagnostics={() => setIsDiagnosticsOpen(true)}
+        diagnosticsCount={diagnostics?.visitedWebsites?.length || 0}
       />
 
       {/* Main Container */}
@@ -224,6 +250,7 @@ export default function App() {
         {/* Search Bar with Dish + Street Address */}
         <SearchBar
           onSearch={(query, address) => performSearch(query, address)}
+          onSelectLocation={(loc) => setUserLocation(loc)}
           isLoading={isLoading}
           currentQuery={dishQuery}
           radiusMiles={radiusMiles}
@@ -234,18 +261,18 @@ export default function App() {
           isGps={userLocation.isGps}
         />
 
-        {/* Semantic Query Interpretation & Spelling Correction Alert */}
-        {hasSearched && !isLoading && diagnostics?.interpretation && (
+        {/* Semantic Query Interpretation, Spelling Correction & Diagnostics Bar */}
+        {hasSearched && !isLoading && diagnostics && (
           <div className="my-3 px-4 py-3 rounded-2xl bg-white/90 border border-[#123D45]/15 shadow-xs flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 text-xs text-[#202B2E]">
             <div className="flex flex-wrap items-center gap-2">
               <span className="inline-flex items-center gap-1.5 font-bold text-[#123D45]">
                 <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-                {diagnostics.interpretation.isSpellingCorrected ? 'Showing results for:' : 'Searching for:'}
+                {diagnostics.interpretation?.isSpellingCorrected ? 'Showing results for:' : 'Searching for:'}
               </span>
               <strong className="text-sm font-heading font-black text-[#123D45] bg-[#FFF9EF] px-2.5 py-0.5 rounded-lg border border-[#F7D889]">
-                {diagnostics.interpretation.canonicalDish}
+                {diagnostics.interpretation?.canonicalDish || dishQuery}
               </strong>
-              {diagnostics.interpretation.isSpellingCorrected && (
+              {diagnostics.interpretation?.isSpellingCorrected && (
                 <span className="text-[#202B2E]/60 text-xs">
                   (interpreted from original input: “{dishQuery}”)
                 </span>
@@ -253,22 +280,38 @@ export default function App() {
             </div>
 
             <div className="flex flex-wrap items-center gap-2">
-              {diagnostics.interpretation.didYouMean &&
+              {/* Primary 'View Search Diagnostics' Button */}
+              <button
+                type="button"
+                onClick={() => setIsDiagnosticsOpen(true)}
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-[#123D45] hover:bg-[#1a4e57] text-[#F7D889] font-bold text-xs shadow-xs hover:shadow-sm transition cursor-pointer"
+                title="Expand drawer revealing restaurant websites visited and menus parsed vs. skipped"
+              >
+                <Activity className="w-3.5 h-3.5 text-[#F47B54]" />
+                <span>View Search Diagnostics</span>
+                {diagnostics.visitedWebsites && (
+                  <span className="px-1.5 py-0.2 bg-[#F7D889] text-[#123D45] text-[10px] font-black rounded-full">
+                    {diagnostics.visitedWebsites.length}
+                  </span>
+                )}
+              </button>
+
+              {diagnostics.interpretation?.didYouMean &&
                 diagnostics.interpretation.didYouMean.toLowerCase() !== dishQuery.toLowerCase() && (
                   <button
                     type="button"
                     onClick={() => performSearch(diagnostics.interpretation!.didYouMean!)}
-                    className="text-xs text-[#F47B54] font-bold hover:underline bg-[#FFF9EF] px-2.5 py-1 rounded-lg border border-[#F47B54]/30"
+                    className="text-xs text-[#F47B54] font-bold hover:underline bg-[#FFF9EF] px-2.5 py-1 rounded-lg border border-[#F47B54]/30 cursor-pointer"
                   >
                     Did you mean: {diagnostics.interpretation.didYouMean}?
                   </button>
                 )}
 
-              {diagnostics.interpretation.isSpellingCorrected && (
+              {diagnostics.interpretation?.isSpellingCorrected && (
                 <button
                   type="button"
                   onClick={() => performSearch(dishQuery)}
-                  className="text-xs text-[#123D45]/70 hover:text-[#123D45] font-semibold underline"
+                  className="text-xs text-[#123D45]/70 hover:text-[#123D45] font-semibold underline cursor-pointer"
                 >
                   Search original query instead
                 </button>
@@ -321,6 +364,7 @@ export default function App() {
               locationName={userLocation.name}
               radiusMiles={radiusMiles}
               onSelectRadius={handleSelectRadius}
+              onOpenDiagnostics={() => setIsDiagnosticsOpen(true)}
             />
           ) : restaurants.length > 0 ? (
             /* Split Screen Layout (Desktop: Side-by-Side; Mobile: Toggled) */
@@ -340,6 +384,7 @@ export default function App() {
                   diagnostics={diagnostics}
                   onSearchMore={handleSearchMore}
                   isSearchingMore={isSearchingMore}
+                  onOpenDiagnostics={() => setIsDiagnosticsOpen(true)}
                 />
               </div>
 
@@ -364,6 +409,16 @@ export default function App() {
         </div>
       </main>
 
+      {/* Search Diagnostics Drawer */}
+      <SearchDiagnosticsDrawer
+        isOpen={isDiagnosticsOpen}
+        onClose={() => setIsDiagnosticsOpen(false)}
+        diagnostics={diagnostics}
+        query={dishQuery}
+        locationName={userLocation.name}
+        radiusMiles={radiusMiles}
+      />
+
       {/* Culinary Deep Dive Inspection Modal */}
       <DishInspectModal
         restaurant={inspectRestaurant}
@@ -377,6 +432,24 @@ export default function App() {
         currentLocation={userLocation}
         onSelectLocation={handleSelectLocation}
       />
+
+      {/* Floating Quick-Access View Search Diagnostics Button */}
+      {hasSearched && diagnostics && (
+        <button
+          type="button"
+          onClick={() => setIsDiagnosticsOpen(true)}
+          className="fixed bottom-6 right-6 z-30 inline-flex items-center gap-2 px-4 py-2.5 rounded-full bg-[#123D45] hover:bg-[#1a4e57] text-[#F7D889] text-xs font-bold shadow-xl shadow-[#123D45]/30 hover:scale-105 transition-all cursor-pointer border border-[#F7D889]/30"
+          title="View Search Diagnostics (restaurant websites visited, menus parsed vs. skipped)"
+        >
+          <Activity className="w-4 h-4 text-[#F47B54] animate-pulse" />
+          <span>Search Diagnostics</span>
+          {diagnostics.visitedWebsites && (
+            <span className="px-1.5 py-0.5 bg-[#F7D889] text-[#123D45] text-[10px] font-black rounded-full">
+              {diagnostics.visitedWebsites.length}
+            </span>
+          )}
+        </button>
+      )}
 
       {/* Footer */}
       <footer className="mt-16 bg-white border-t border-[#123D45]/10 py-10">

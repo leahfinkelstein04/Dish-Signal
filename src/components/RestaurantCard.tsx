@@ -21,20 +21,21 @@ interface RestaurantCardProps {
   onInspect: (restaurant: Restaurant) => void;
 }
 
-// Clean any accidental "AI" phrases from data sources
-const cleanSource = (source?: string | null): string => {
-  if (!source) return 'Official Menu Listing';
+// Clean any accidental "AI" phrases or synthetic citations from data sources
+const cleanSource = (source?: string | null, isVerified?: boolean): string => {
+  if (!source) return isVerified ? 'Verified Menu Listing' : 'Pending Verification';
   return (
     source
-      .replace(/verified\s*by\s*ai/gi, 'Official Menu Listing')
+      .replace(/local\s*physical\s*venue\s*registry\s*(&\s*direct\s*menu)?/gi, 'Directory Listing')
+      .replace(/verified\s*by\s*ai/gi, 'Menu Listing')
       .replace(/verified\s*ai/gi, 'Verified Menu')
       .replace(/ai\s*verified/gi, 'Verified Menu')
       .replace(/\bai\b/gi, 'Menu')
       .replace(/\ba\.i\.\b/gi, 'Menu')
-      .replace(/\bgemini\b/gi, 'Direct Registry')
+      .replace(/\bgemini\b/gi, 'Menu Registry')
       .replace(/\bmodel\b/gi, 'Listing')
       .replace(/\balgorithm\b/gi, 'Direct Listing')
-      .trim() || 'Official Menu Listing'
+      .trim() || (isVerified ? 'Verified Menu Listing' : 'Pending Verification')
   );
 };
 
@@ -68,12 +69,13 @@ export const RestaurantCard: React.FC<RestaurantCardProps> = ({
   onSelect,
   onInspect,
 }) => {
-  const displaySource = cleanSource(restaurant.verificationSource);
+  const isVerified = restaurant.verificationStatus === 'VERIFIED_MENU';
+  const displaySource = cleanSource(restaurant.verificationSource, isVerified);
   const displayEvidence = cleanEvidence(restaurant.evidenceSummary);
   const displayMenuWording = restaurant.actualMenuWording || restaurant.dishName;
   const itemIcon = getItemIcon(displayMenuWording, restaurant.itemCategory, restaurant.placeType);
 
-  const matchType = restaurant.matchType || (restaurant.verificationStatus === 'VERIFIED_MENU' ? 'EXACT_OR_EQUIVALENT' : 'UNVERIFIED');
+  const matchType = restaurant.matchType || (isVerified ? 'EXACT_OR_EQUIVALENT' : 'UNVERIFIED');
 
   return (
     <div
@@ -147,9 +149,15 @@ export const RestaurantCard: React.FC<RestaurantCardProps> = ({
               </span>
             </div>
           </div>
-          <span className="px-2.5 py-1 rounded-xl bg-white border border-[#123D45]/10 font-bold text-sm text-[#123D45] shrink-0 shadow-2xs">
-            {restaurant.dishPrice}
-          </span>
+          {restaurant.dishPrice ? (
+            <span className="px-2.5 py-1 rounded-xl bg-white border border-[#123D45]/10 font-bold text-sm text-[#123D45] shrink-0 shadow-2xs">
+              {restaurant.dishPrice}
+            </span>
+          ) : (
+            <span className="px-2.5 py-1 rounded-xl bg-white/70 border border-[#123D45]/10 font-medium text-xs text-[#202B2E]/60 shrink-0">
+              Price on menu
+            </span>
+          )}
         </div>
 
         <p className="mt-2.5 text-xs sm:text-sm text-[#202B2E]/80 leading-relaxed">

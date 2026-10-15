@@ -1,5 +1,5 @@
 import React from 'react';
-import { MapPin, Navigation, Utensils } from 'lucide-react';
+import { MapPin, Navigation, Utensils, Activity } from 'lucide-react';
 import { UserLocation } from '../types';
 
 interface HeaderProps {
@@ -7,6 +7,8 @@ interface HeaderProps {
   onOpenLocationModal: () => void;
   radiusMiles: number;
   onSelectRadius: (miles: number) => void;
+  onOpenDiagnostics?: () => void;
+  diagnosticsCount?: number;
 }
 
 export const Header: React.FC<HeaderProps> = ({
@@ -14,6 +16,8 @@ export const Header: React.FC<HeaderProps> = ({
   onOpenLocationModal,
   radiusMiles,
   onSelectRadius,
+  onOpenDiagnostics,
+  diagnosticsCount = 0,
 }) => {
   return (
     <header className="sticky top-0 z-40 bg-[#FFF9EF]/95 backdrop-blur-md border-b border-[#123D45]/10 transition-all">
@@ -63,11 +67,30 @@ export const Header: React.FC<HeaderProps> = ({
             </div>
           </div>
 
-          {/* Location & Radius Controller */}
+          {/* Location, Diagnostics, & Radius Controls */}
           <div className="flex items-center gap-2 sm:gap-3">
+            {/* View Search Diagnostics Button in Header */}
+            {onOpenDiagnostics && (
+              <button
+                type="button"
+                onClick={onOpenDiagnostics}
+                className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-[#123D45] hover:bg-[#1a4e57] text-[#F7D889] text-xs font-bold shadow-xs hover:shadow-sm transition cursor-pointer"
+                title="View Search Diagnostics (crawled restaurant websites, menus parsed vs skipped)"
+              >
+                <Activity className="w-4 h-4 text-[#F47B54] animate-pulse" />
+                <span className="hidden md:inline">View Diagnostics</span>
+                <span className="inline md:hidden">Diagnostics</span>
+                {diagnosticsCount > 0 && (
+                  <span className="px-1.5 py-0.2 bg-[#F7D889] text-[#123D45] text-[10px] font-black rounded-full">
+                    {diagnosticsCount}
+                  </span>
+                )}
+              </button>
+            )}
+
             <button
               onClick={onOpenLocationModal}
-              className="flex items-center gap-2 px-3 sm:px-4 py-2 rounded-xl bg-white border border-[#123D45]/15 hover:border-[#F47B54] text-[#123D45] text-xs sm:text-sm font-semibold shadow-xs transition hover:shadow-sm"
+              className="flex items-center gap-2 px-3 sm:px-4 py-2 rounded-xl bg-white border border-[#123D45]/15 hover:border-[#F47B54] text-[#123D45] text-xs sm:text-sm font-semibold shadow-xs transition hover:shadow-sm cursor-pointer"
               title="Change search location"
             >
               {location.isGps ? (
@@ -75,7 +98,7 @@ export const Header: React.FC<HeaderProps> = ({
               ) : (
                 <MapPin className="w-4 h-4 text-[#123D45]" />
               )}
-              <span className="max-w-[120px] sm:max-w-[200px] truncate text-left">
+              <span className="max-w-[110px] sm:max-w-[190px] truncate text-left">
                 {location.name}
               </span>
               <span className="text-[11px] text-[#202B2E]/60 bg-[#123D45]/5 px-1.5 py-0.5 rounded-md font-mono">
@@ -84,7 +107,7 @@ export const Header: React.FC<HeaderProps> = ({
             </button>
 
             {/* Quick Radius Selector (Dropdown / Pills) */}
-            <div className="hidden md:flex items-center bg-white/80 p-1 rounded-xl border border-[#123D45]/10 text-xs font-semibold">
+            <div className="hidden lg:flex items-center bg-white/80 p-1 rounded-xl border border-[#123D45]/10 text-xs font-semibold">
               <span className="px-2 text-[11px] uppercase tracking-wider text-[#202B2E]/50">
                 Radius:
               </span>

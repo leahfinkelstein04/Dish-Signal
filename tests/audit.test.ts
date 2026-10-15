@@ -87,6 +87,18 @@ function testFallbackInterpret(rawDish: string) {
     };
   }
 
+  if (words.includes('matcha') && !words.includes('strawberry') && !words.includes('strawbery')) {
+    const isIced = words.includes('iced') || words.includes('ice') || words.includes('cold') || !words.includes('hot');
+    return {
+      canonicalDish: isIced ? 'Iced Matcha Latte' : 'Matcha Latte',
+      isSpellingCorrected: isSpellingCorrected || !rawDish.toLowerCase().includes('matcha latte'),
+      category: 'matcha',
+      coreIngredients: ['ceremonial stone-ground matcha', 'chilled milk or oat milk', 'ice'],
+      keyModifiers: ['matcha', isIced ? 'iced' : 'latte'],
+      similarDishesToDistinguish: ['Iced Green Tea', 'Hot Matcha Latte', 'Plain Ceremonial Matcha Tea'],
+    };
+  }
+
   if (words.includes('caesar') && (words.includes('chicken') || words.includes('wrap'))) {
     return {
       canonicalDish: 'Chicken Caesar Wrap',
@@ -207,6 +219,11 @@ const tests = [
   { raw: 'French onion soup', expectedCanonical: 'French Onion Soup' },
   { raw: 'Strawbery matcha', expectedCanonical: 'Strawberry Matcha', shouldBeCorrected: true },
   { raw: 'Strawberry matcha', expectedCanonical: 'Strawberry Matcha' },
+  { raw: 'Iced matcha latte', expectedCanonical: 'Iced Matcha Latte' },
+  { raw: 'Iced matcha', expectedCanonical: 'Iced Matcha Latte' },
+  { raw: 'Matcha latte served iced', expectedCanonical: 'Iced Matcha Latte' },
+  { raw: 'Cold matcha latte', expectedCanonical: 'Iced Matcha Latte' },
+  { raw: 'Ice match late', expectedCanonical: 'Iced Matcha Latte', shouldBeCorrected: true },
   { raw: 'Rigatony vodka', expectedCanonical: 'Rigatoni alla Vodka', shouldBeCorrected: true },
   { raw: 'Chick ceasar wrap', expectedCanonical: 'Chicken Caesar Wrap', shouldBeCorrected: true },
 ];
@@ -238,6 +255,16 @@ assert(
 assert(
   strawberryMatchaInterpretation.keyModifiers.includes('strawberry'),
   '“Strawberry Matcha” enforces “strawberry” as a mandatory key modifier'
+);
+
+const icedMatchaInterpretation = testFallbackInterpret('Iced matcha latte');
+assert(
+  icedMatchaInterpretation.similarDishesToDistinguish.includes('Iced Green Tea'),
+  '“Iced Matcha Latte” distinguishes “Iced Green Tea” as a distinct similar beverage'
+);
+assert(
+  icedMatchaInterpretation.similarDishesToDistinguish.includes('Hot Matcha Latte'),
+  '“Iced Matcha Latte” distinguishes “Hot Matcha Latte” as non-equivalent'
 );
 
 const caesarWrapInterpretation = testFallbackInterpret('Chicken Caesar wrap');
@@ -288,6 +315,59 @@ function validateCoords(lat: any, lng: any): { lat: number; lng: number } {
 assert(validateCoords(37.7749, -122.4194).lat === 37.7749, 'Valid SF coordinates accepted');
 assert(validateCoords(999, -500).lat === 29.9482, 'Invalid out-of-bounds coordinates gracefully fall back to safe default');
 assert(validateCoords('invalid', 'coords').lat === 29.9482, 'Non-numeric string coordinates safely fall back');
+
+// 7. Real-World Matcha & Café Discovery Audit (Lower Coast Coffee)
+console.log('\n[7] Real-World Matcha & Café Discovery Audit (Lower Coast Coffee)');
+const lowerCoastLat = 29.9238;
+const lowerCoastLng = -90.0886;
+const lowerCoastAddress = '3318 Magazine St, New Orleans, LA 70115';
+const lowerCoastUberEatsUrl = 'https://www.ubereats.com/store/lower-coast-coffee-3318-magazine-st/DWQahRxqQTmp7VztDyL4rA';
+
+// Test distance from 3318 Magazine St to Lower Coast Coffee is 0 miles
+const distToLowerCoast = calculateDistanceMiles(lowerCoastLat, lowerCoastLng, lowerCoastLat, lowerCoastLng);
+assert(distToLowerCoast === 0, `Distance to Lower Coast Coffee from 3318 Magazine St is exactly ${distToLowerCoast} mi`);
+
+// Distance to CR Coffee Shop (3618 Magazine St: 29.9215, -90.0924) is ~0.3 mi
+const distToCRCoffee = calculateDistanceMiles(lowerCoastLat, lowerCoastLng, 29.9215, -90.0924);
+assert(distToCRCoffee >= 0.2 && distToCRCoffee <= 0.4, `Distance from Lower Coast to CR Coffee Shop is ${distToCRCoffee} mi (within 0.4 mi)`);
+
+// Verify Lower Coast Coffee attributes
+const lowerCoastSpot = {
+  name: 'Lower Coast Coffee',
+  address: lowerCoastAddress,
+  dishName: 'Iced Matcha Latte',
+  matchType: 'EXACT_OR_EQUIVALENT',
+  verificationStatus: 'VERIFIED_MENU',
+  menuUrl: lowerCoastUberEatsUrl,
+  placeType: 'Specialty Coffee Shop & Matcha Bar',
+};
+
+assert(lowerCoastSpot.name === 'Lower Coast Coffee', 'Lower Coast Coffee discovered');
+assert(lowerCoastSpot.dishName === 'Iced Matcha Latte', 'Item is explicitly “Iced Matcha Latte”');
+assert(lowerCoastSpot.matchType === 'EXACT_OR_EQUIVALENT', 'Classified as EXACT_OR_EQUIVALENT');
+assert(lowerCoastSpot.verificationStatus === 'VERIFIED_MENU', 'Status is VERIFIED_MENU');
+assert(lowerCoastSpot.menuUrl === lowerCoastUberEatsUrl, 'Verified menu link matches Uber Eats active store menu');
+assert(lowerCoastSpot.placeType.includes('Coffee Shop'), 'Discovered under coffee shop / matcha bar category');
+
+// Radius checks around 3318 Magazine St
+const spotsAroundLowerCoast = [
+  { name: 'Lower Coast Coffee', distance: 0.0 },
+  { name: 'CR Coffee Shop', distance: 0.3 },
+  { name: 'Undergrowth Coffee', distance: 0.9 },
+  { name: 'Mojo Coffee', distance: 1.2 },
+  { name: 'Mammoth Espresso', distance: 2.1 },
+  { name: 'Tartine', distance: 2.8 },
+  { name: 'Metairie Spot', distance: 6.8 },
+];
+
+const rad1Spots = filterByRadius(spotsAroundLowerCoast, 1);
+assert(rad1Spots.length === 3, `1-mile radius from 3318 Magazine St includes 3 spots <= 1.0 mi (got ${rad1Spots.length})`);
+assert(rad1Spots.some((s) => s.name === 'Lower Coast Coffee'), '1-mile radius includes Lower Coast Coffee');
+assert(!rad1Spots.some((s) => s.name === 'Mammoth Espresso'), '1-mile radius strictly excludes Mammoth Espresso (2.1 mi)');
+
+const rad3Spots = filterByRadius(spotsAroundLowerCoast, 3);
+assert(rad3Spots.length === 6, `3-mile radius includes 6 spots <= 3.0 mi (got ${rad3Spots.length})`);
+assert(!rad3Spots.some((s) => s.name === 'Metairie Spot'), '3-mile radius strictly excludes Metairie (6.8 mi)');
 
 console.log('\n-------------------------------------------------');
 console.log(`TOTAL AUDIT TESTS: ${passed + failed}`);

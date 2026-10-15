@@ -7,20 +7,21 @@ interface DishInspectModalProps {
   onClose: () => void;
 }
 
-// Clean any accidental "AI" phrases from data sources
-const cleanSource = (source?: string | null): string => {
-  if (!source) return 'Official Menu Listing';
+// Clean any accidental "AI" phrases or synthetic citations from data sources
+const cleanSource = (source?: string | null, isVerified?: boolean): string => {
+  if (!source) return isVerified ? 'Verified Menu Listing' : 'Pending Verification';
   return (
     source
-      .replace(/verified\s*by\s*ai/gi, 'Official Menu Listing')
+      .replace(/local\s*physical\s*venue\s*registry\s*(&\s*direct\s*menu)?/gi, 'Directory Listing')
+      .replace(/verified\s*by\s*ai/gi, 'Menu Listing')
       .replace(/verified\s*ai/gi, 'Verified Menu')
       .replace(/ai\s*verified/gi, 'Verified Menu')
       .replace(/\bai\b/gi, 'Menu')
       .replace(/\ba\.i\.\b/gi, 'Menu')
-      .replace(/\bgemini\b/gi, 'Direct Registry')
+      .replace(/\bgemini\b/gi, 'Menu Registry')
       .replace(/\bmodel\b/gi, 'Listing')
       .replace(/\balgorithm\b/gi, 'Direct Listing')
-      .trim() || 'Official Menu Listing'
+      .trim() || (isVerified ? 'Verified Menu Listing' : 'Pending Verification')
   );
 };
 
@@ -74,7 +75,8 @@ export const DishInspectModal: React.FC<DishInspectModalProps> = ({
 
   if (!restaurant) return null;
 
-  const displaySource = cleanSource(restaurant.verificationSource);
+  const isVerified = restaurant.verificationStatus === 'VERIFIED_MENU';
+  const displaySource = cleanSource(restaurant.verificationSource, isVerified);
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-[#202B2E]/60 backdrop-blur-xs animate-in fade-in duration-200">
@@ -90,15 +92,20 @@ export const DishInspectModal: React.FC<DishInspectModalProps> = ({
                 <span className="text-xs uppercase font-bold tracking-wider text-[#F47B54]">
                   Culinary Deep-Dive
                 </span>
-                <span className="text-xs bg-emerald-50 text-emerald-800 font-semibold px-2 py-0.5 rounded-full border border-emerald-200">
-                  {restaurant.verificationStatus === 'VERIFIED_MENU' ? 'Verified Menu Match' : 'High Match'}
+                <span className={`text-xs font-semibold px-2 py-0.5 rounded-full border ${
+                  isVerified
+                    ? 'bg-emerald-50 text-emerald-800 border-emerald-200'
+                    : 'bg-amber-50 text-amber-800 border-amber-200'
+                }`}>
+                  {isVerified ? 'Verified Menu Match' : 'Unverified Discovery'}
                 </span>
               </div>
               <h2 className="font-heading text-xl sm:text-2xl font-bold text-[#123D45]">
                 {restaurant.dishName}
               </h2>
               <p className="text-xs text-[#202B2E]/70">
-                At <strong className="text-[#123D45]">{restaurant.name}</strong> • {restaurant.priceLevel} ({restaurant.dishPrice})
+                At <strong className="text-[#123D45]">{restaurant.name}</strong> • {restaurant.priceLevel}
+                {restaurant.dishPrice ? ` • ${restaurant.dishPrice}` : ''}
               </p>
             </div>
           </div>
